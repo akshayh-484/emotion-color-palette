@@ -34,6 +34,12 @@ html[data-emotion='melancholy'] .display__hero { background-image: linear-gradie
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Prevent iOS Safari from auto-scaling font sizes — keeps buttons consistent across devices */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 /* Remove blue tap-highlight on all interactive elements on mobile */
 button,
 a,
