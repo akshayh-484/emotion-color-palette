@@ -823,7 +823,8 @@ body {
   @keyframes popupInMobile {
     from { opacity: 0; }
     to   { opacity: 1; }
-  }}
+  }
+}
 
 /* ─── Responsive: very small screens (≤ 360px) ───────────────────────────── */
 @media (max-width: 360px) {
