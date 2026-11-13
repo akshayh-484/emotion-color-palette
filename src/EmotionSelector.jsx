@@ -136,6 +136,15 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     return { position: 'fixed', top: `${top}px`, left: `${left}px`, width: `${popupW}px` };
   }
 
+  // Close any open popup when activeIndex changes (animation switches emotions)
+  useEffect(() => {
+    if (openId) {
+      setOpenId(null);
+      setPopupStyle(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex]);
+
   const handleEyeClick = (e, emotionId) => {
     e.preventDefault();
     e.stopPropagation();
