@@ -403,11 +403,9 @@ body {
 
 /* ─── Info popup ─────────────────────────────────────────────────────────── */
 .emotion-popup {
-  position: absolute;
-  top: calc(100% + 8px);   /* below the selector button row */
-  left: 0;
-  transform: none;
-  z-index: 20;
+  /* Position is always set via JS inline style (fixed) — never falls back to this */
+  position: fixed;
+  z-index: 200;
   width: 268px;
   background: #16161F;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -796,16 +794,13 @@ body {
     color: rgba(245, 200, 66, 0.9);
   }
 
-  /* Popup: position is set entirely via JS inline style on mobile.
+  /* Popup: position is set entirely via JS inline style (fixed).
      The popup is not rendered until the position is ready, so no off-screen flash. */
   .emotion-popup {
-    position: fixed;
     max-height: 50dvh;
     overflow-y: auto;
     padding: 1rem 1.1rem 1.1rem;
     border-radius: 14px;
-    z-index: 100;
-    /* Override the desktop popupIn animation with the mobile one */
     animation: popupInMobile 0.2s ease both;
   }
 

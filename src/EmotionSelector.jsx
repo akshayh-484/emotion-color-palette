@@ -129,43 +129,29 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     const wrapEl = wrapRefs.current[openId];
     if (!wrapEl) { setPopupStyle(null); return; }
 
-    const isMob = window.innerWidth <= 768;
+    // Always use fixed positioning — takes popup out of every stacking context,
+    // so it can never appear behind the card or any other element on any device.
+    const rect   = wrapEl.getBoundingClientRect();
+    const vw     = window.innerWidth;
+    const isMob  = vw <= 768;
+    const popupW = isMob ? Math.min(POPUP_W, vw - POPUP_MARGIN * 2) : POPUP_W;
 
-    if (isMob) {
-      // Fixed positioning on mobile — popup floats over the whole page
-      const rect   = wrapEl.getBoundingClientRect();
-      const vw     = window.innerWidth;
-      const popupW = Math.min(POPUP_W, vw - POPUP_MARGIN * 2);
-      const idealLeft = rect.left + rect.width / 2 - popupW / 2;
-      const left   = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
-      const idealTop  = rect.bottom + 8;
-      const maxTop    = window.innerHeight - 220 - POPUP_MARGIN;
-      const top    = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
-      setPopupStyle({
-        position: 'fixed',
-        top:  `${top}px`,
-        left: `${left}px`,
-        width: `${popupW}px`,
-      });
-    } else {
-      // Desktop: absolute positioning relative to pill-wrap
-      // Clamp left so popup never overflows the right viewport edge
-      const rect  = wrapEl.getBoundingClientRect();
-      const vw    = window.innerWidth;
-      // Ideal: align left edge of popup with left edge of pill-wrap
-      let left = 0;
-      // If popup would overflow right viewport edge, shift it left
-      const overflowRight = rect.left + POPUP_W - vw + POPUP_MARGIN;
-      if (overflowRight > 0) {
-        left = -overflowRight;
-      }
-      setPopupStyle({
-        position: 'absolute',
-        top:  'calc(100% + 8px)',
-        left: `${left}px`,
-        width: `${POPUP_W}px`,
-      });
-    }
+    // Horizontal: centre over the pill-wrap, clamped to viewport
+    const idealLeft = rect.left + rect.width / 2 - popupW / 2;
+    const left = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
+
+    // Vertical: appear below the pill-wrap, clamped so it doesn't go off-screen
+    const idealTop = rect.bottom + 8;
+    const minSpace = isMob ? 220 : 260;   // minimum popup height estimate
+    const maxTop   = window.innerHeight - minSpace - POPUP_MARGIN;
+    const top      = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
+
+    setPopupStyle({
+      position: 'fixed',
+      top:   `${top}px`,
+      left:  `${left}px`,
+      width: `${popupW}px`,
+    });
   }, [openId]);
 
   const handleEyeClick = (e, emotionId) => {
