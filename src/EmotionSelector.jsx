@@ -150,6 +150,21 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     return { position: 'fixed', top: `${top}px`, left: `${left}px`, width: `${popupW}px` };
   }
 
+  // When animation is running, activeIndex changes every 4s.
+  // The active pill's lift transform (translateY -3px) moves between pills on each change.
+  // Recalculate popup position after the DOM settles (via requestAnimationFrame)
+  // so the popup stays locked to the correct pill-wrap position.
+  useEffect(() => {
+    if (!openId) return;
+    // rAF waits for the browser to apply the new transform before measuring
+    const raf = requestAnimationFrame(() => {
+      const style = calcStyle(openId);
+      if (style) setPopupStyle(style);
+    });
+    return () => cancelAnimationFrame(raf);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, openId]);
+
   const handleEyeClick = (e, emotionId) => {
     e.stopPropagation();
     // Compute position right here — synchronously, before setState —
