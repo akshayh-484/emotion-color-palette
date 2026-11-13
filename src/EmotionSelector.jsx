@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const NOTES = {
   calm: {
@@ -108,7 +108,7 @@ function EmotionPopup({ emotion, onClose, triggerRef, popupStyle }) {
 
 export default function EmotionSelector({ emotions, activeIndex, onSelect, isAnimating, toggleBtnRef }) {
   const [openId,     setOpenId]     = useState(null);
-  // popupStyle is computed synchronously before render so there's no position flash
+  // popupStyle is computed synchronously in the click handler before any render
   const [popupStyle, setPopupStyle] = useState(null);
 
   const eyeRefs  = useRef({});
@@ -121,42 +121,36 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     if (!eyeRefs.current[id]) eyeRefs.current[id] = { current: null };
   }
 
-  // Compute popup position synchronously before browser paints.
-  // Runs whenever openId changes — position is ready before EmotionPopup mounts.
-  useLayoutEffect(() => {
-    if (!openId) { setPopupStyle(null); return; }
-
-    const wrapEl = wrapRefs.current[openId];
-    if (!wrapEl) { setPopupStyle(null); return; }
-
-    // Always use fixed positioning — takes popup out of every stacking context,
-    // so it can never appear behind the card or any other element on any device.
+  // Compute popup position from the pill-wrap element synchronously.
+  // Always uses position:fixed so the popup is above every stacking context.
+  function calcStyle(emotionId) {
+    const wrapEl = wrapRefs.current[emotionId];
+    if (!wrapEl) return null;
     const rect   = wrapEl.getBoundingClientRect();
     const vw     = window.innerWidth;
     const isMob  = vw <= 768;
     const popupW = isMob ? Math.min(POPUP_W, vw - POPUP_MARGIN * 2) : POPUP_W;
-
-    // Horizontal: centre over the pill-wrap, clamped to viewport
     const idealLeft = rect.left + rect.width / 2 - popupW / 2;
-    const left = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
-
-    // Vertical: appear below the pill-wrap, clamped so it doesn't go off-screen
-    const idealTop = rect.bottom + 8;
-    const minSpace = isMob ? 220 : 260;   // minimum popup height estimate
-    const maxTop   = window.innerHeight - minSpace - POPUP_MARGIN;
-    const top      = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
-
-    setPopupStyle({
-      position: 'fixed',
-      top:   `${top}px`,
-      left:  `${left}px`,
-      width: `${popupW}px`,
-    });
-  }, [openId]);
+    const left   = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
+    const idealTop  = rect.bottom + 8;
+    const minSpace  = isMob ? 220 : 260;
+    const maxTop    = window.innerHeight - minSpace - POPUP_MARGIN;
+    const top    = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
+    return { position: 'fixed', top: `${top}px`, left: `${left}px`, width: `${popupW}px` };
+  }
 
   const handleEyeClick = (e, emotionId) => {
     e.stopPropagation();
-    setOpenId((prev) => (prev === emotionId ? null : emotionId));
+    // Compute position right here — synchronously, before setState —
+    // so both openId and popupStyle land in the same React batch → one render → no flash
+    if (openId === emotionId) {
+      setOpenId(null);
+      setPopupStyle(null);
+    } else {
+      const style = calcStyle(emotionId);
+      setPopupStyle(style);
+      setOpenId(emotionId);
+    }
   };
 
   // Arrow key navigation between emotion buttons
