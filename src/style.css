@@ -796,11 +796,10 @@ body {
     color: rgba(245, 200, 66, 0.9);
   }
 
-  /* Popup: position set via JS inline style. Default off-screen prevents flash. */
+  /* Popup: position is set entirely via JS inline style on mobile.
+     The popup is not rendered until the position is ready, so no off-screen flash. */
   .emotion-popup {
     position: fixed;
-    top: -9999px;
-    left: -9999px;
     max-height: 50dvh;
     overflow-y: auto;
     padding: 1rem 1.1rem 1.1rem;

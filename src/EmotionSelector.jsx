@@ -23,7 +23,7 @@ const NOTES = {
   },
 };
 
-const POPUP_W      = 290;
+const POPUP_W      = 268;  // matches CSS .emotion-popup width
 const POPUP_MARGIN = 10;
 
 function EyeIcon() {
@@ -45,28 +45,10 @@ function EyeIcon() {
   );
 }
 
-function EmotionPopup({ emotion, onClose, triggerRef, wrapRef }) {
-  const popupRef  = useRef(null);
-  const closeRef  = useRef(null);
-  const note      = NOTES[emotion.id];
-  const isMob     = typeof window !== 'undefined' && window.innerWidth <= 600;
-
-  // Calculate position synchronously before paint using useLayoutEffect
-  // This avoids the one-frame glitch where the popup is visible at -9999px
-  const [mobileStyle, setMobileStyle] = useState(undefined);
-
-  useLayoutEffect(() => {
-    if (!isMob || !wrapRef?.current) return;
-    const rect   = wrapRef.current.getBoundingClientRect();
-    const vw     = window.innerWidth;
-    const popupW = Math.min(POPUP_W, vw - POPUP_MARGIN * 2);
-    const idealTop  = rect.bottom + 8;
-    const idealLeft = rect.left + rect.width / 2 - popupW / 2;
-    const left   = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
-    const maxTop = window.innerHeight - 220 - POPUP_MARGIN;
-    const top    = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
-    setMobileStyle({ position: 'fixed', top: `${top}px`, left: `${left}px`, width: `${popupW}px` });
-  }, [isMob, wrapRef]);
+function EmotionPopup({ emotion, onClose, triggerRef, popupStyle }) {
+  const popupRef = useRef(null);
+  const closeRef = useRef(null);
+  const note     = NOTES[emotion.id];
 
   // Move focus to close button when popup opens
   useEffect(() => { closeRef.current?.focus(); }, []);
@@ -88,6 +70,7 @@ function EmotionPopup({ emotion, onClose, triggerRef, wrapRef }) {
         triggerRef.current && !triggerRef.current.contains(e.target)
       ) onClose();
     };
+    // small delay so the click that opened it doesn't immediately close it
     const id = setTimeout(() => document.addEventListener('mousedown', onOutside), 10);
     return () => { clearTimeout(id); document.removeEventListener('mousedown', onOutside); };
   }, [onClose, triggerRef]);
@@ -95,7 +78,7 @@ function EmotionPopup({ emotion, onClose, triggerRef, wrapRef }) {
   return (
     <div
       className="emotion-popup"
-      style={mobileStyle}
+      style={popupStyle}
       ref={popupRef}
       role="dialog"
       aria-modal="true"
@@ -124,7 +107,10 @@ function EmotionPopup({ emotion, onClose, triggerRef, wrapRef }) {
 }
 
 export default function EmotionSelector({ emotions, activeIndex, onSelect, isAnimating, toggleBtnRef }) {
-  const [openId, setOpenId] = useState(null);
+  const [openId,     setOpenId]     = useState(null);
+  // popupStyle is computed synchronously before render so there's no position flash
+  const [popupStyle, setPopupStyle] = useState(null);
+
   const eyeRefs  = useRef({});
   const wrapRefs = useRef({});
   const pillRefs = useRef({});
@@ -135,13 +121,59 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     if (!eyeRefs.current[id]) eyeRefs.current[id] = { current: null };
   }
 
+  // Compute popup position synchronously before browser paints.
+  // Runs whenever openId changes — position is ready before EmotionPopup mounts.
+  useLayoutEffect(() => {
+    if (!openId) { setPopupStyle(null); return; }
+
+    const wrapEl = wrapRefs.current[openId];
+    if (!wrapEl) { setPopupStyle(null); return; }
+
+    const isMob = window.innerWidth <= 768;
+
+    if (isMob) {
+      // Fixed positioning on mobile — popup floats over the whole page
+      const rect   = wrapEl.getBoundingClientRect();
+      const vw     = window.innerWidth;
+      const popupW = Math.min(POPUP_W, vw - POPUP_MARGIN * 2);
+      const idealLeft = rect.left + rect.width / 2 - popupW / 2;
+      const left   = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
+      const idealTop  = rect.bottom + 8;
+      const maxTop    = window.innerHeight - 220 - POPUP_MARGIN;
+      const top    = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
+      setPopupStyle({
+        position: 'fixed',
+        top:  `${top}px`,
+        left: `${left}px`,
+        width: `${popupW}px`,
+      });
+    } else {
+      // Desktop: absolute positioning relative to pill-wrap
+      // Clamp left so popup never overflows the right viewport edge
+      const rect  = wrapEl.getBoundingClientRect();
+      const vw    = window.innerWidth;
+      // Ideal: align left edge of popup with left edge of pill-wrap
+      let left = 0;
+      // If popup would overflow right viewport edge, shift it left
+      const overflowRight = rect.left + POPUP_W - vw + POPUP_MARGIN;
+      if (overflowRight > 0) {
+        left = -overflowRight;
+      }
+      setPopupStyle({
+        position: 'absolute',
+        top:  'calc(100% + 8px)',
+        left: `${left}px`,
+        width: `${POPUP_W}px`,
+      });
+    }
+  }, [openId]);
+
   const handleEyeClick = (e, emotionId) => {
     e.stopPropagation();
     setOpenId((prev) => (prev === emotionId ? null : emotionId));
   };
 
   // Arrow key navigation between emotion buttons
-  // Right/Down = next, Left/Up = previous (all wrap around)
   const handlePillKeyDown = (e, index) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
@@ -207,12 +239,13 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
               </span>
             </button>
 
-            {isOpen && (
+            {/* Only render popup when popupStyle is ready — eliminates position flash */}
+            {isOpen && popupStyle && (
               <EmotionPopup
                 emotion={emotion}
                 onClose={() => setOpenId(null)}
                 triggerRef={eyeRefs.current[emotion.id]}
-                wrapRef={{ current: wrapRefs.current[emotion.id] }}
+                popupStyle={popupStyle}
               />
             )}
           </div>
