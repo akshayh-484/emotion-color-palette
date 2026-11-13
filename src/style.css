@@ -242,8 +242,11 @@ body {
 }
 
 /* Lift only the ACTIVE button when animation is running — others stay flat */
+/* NOTE: transform is intentionally removed here to prevent getBoundingClientRect()
+   from reading mid-transition values when the popup position is calculated.
+   The spinning ring is already a clear visual indicator of the active pill. */
 .selector--animating .pill-wrap--active {
-  transform: translateY(-3px);
+  /* transform: translateY(-3px); — removed, caused popup jump */
 }
 
 /* Per-emotion ring colours — derived from each emotion's actual gradient palette.
