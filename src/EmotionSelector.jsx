@@ -23,7 +23,7 @@ const NOTES = {
   },
 };
 
-const POPUP_W      = 268;  // matches CSS .emotion-popup width
+const POPUP_W      = 268;
 const POPUP_MARGIN = 10;
 
 function EyeIcon() {
@@ -50,10 +50,8 @@ function EmotionPopup({ emotion, onClose, triggerRef, popupStyle }) {
   const closeRef = useRef(null);
   const note     = NOTES[emotion.id];
 
-  // Move focus to close button when popup opens
   useEffect(() => { closeRef.current?.focus(); }, []);
 
-  // Close on Escape
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') { onClose(); triggerRef.current?.focus(); }
@@ -62,7 +60,6 @@ function EmotionPopup({ emotion, onClose, triggerRef, popupStyle }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose, triggerRef]);
 
-  // Close when clicking outside
   useEffect(() => {
     const onOutside = (e) => {
       if (
@@ -70,7 +67,6 @@ function EmotionPopup({ emotion, onClose, triggerRef, popupStyle }) {
         triggerRef.current && !triggerRef.current.contains(e.target)
       ) onClose();
     };
-    // small delay so the click that opened it doesn't immediately close it
     const id = setTimeout(() => document.addEventListener('mousedown', onOutside), 10);
     return () => { clearTimeout(id); document.removeEventListener('mousedown', onOutside); };
   }, [onClose, triggerRef]);
@@ -90,14 +86,11 @@ function EmotionPopup({ emotion, onClose, triggerRef, popupStyle }) {
         onClick={onClose}
         aria-label="Close colour notes"
       >✕</button>
-
       <p className="emotion-popup__emotion">{emotion.name}</p>
-
       <div className="emotion-popup__row">
         <span className="emotion-popup__label">Meaning</span>
         <span className="emotion-popup__value">{note.meaning}</span>
       </div>
-
       <div className="emotion-popup__row">
         <span className="emotion-popup__label">Why these colours</span>
         <span className="emotion-popup__value">{note.reason}</span>
@@ -108,24 +101,18 @@ function EmotionPopup({ emotion, onClose, triggerRef, popupStyle }) {
 
 export default function EmotionSelector({ emotions, activeIndex, onSelect, isAnimating, toggleBtnRef }) {
   const [openId,     setOpenId]     = useState(null);
-  // popupStyle is computed synchronously in the click handler before any render
   const [popupStyle, setPopupStyle] = useState(null);
 
   const eyeRefs  = useRef({});
   const wrapRefs = useRef({});
   const pillRefs = useRef({});
-  const navRef   = useRef(null);   // reference to the <nav> — never transformed
+  const navRef   = useRef(null);
 
-  // Initialise eyeRefs entries for each emotion
   for (let i = 0; i < emotions.length; i++) {
     const id = emotions[i].id;
     if (!eyeRefs.current[id]) eyeRefs.current[id] = { current: null };
   }
 
-  // Compute popup position from the pill-wrap element synchronously.
-  // Always uses position:fixed so the popup is above every stacking context.
-  // Top anchor uses the NAV bottom (never transformed) so the active-pill lift
-  // animation (translateY -3px) doesn't cause the popup to jump.
   function calcStyle(emotionId) {
     const wrapEl = wrapRefs.current[emotionId];
     if (!wrapEl) return null;
@@ -134,11 +121,10 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     const isMob    = vw <= 768;
     const popupW   = isMob ? Math.min(POPUP_W, vw - POPUP_MARGIN * 2) : POPUP_W;
 
-    // Horizontal: centre over the pill-wrap (its left/width are unaffected by translateY)
     const idealLeft = wrapRect.left + wrapRect.width / 2 - popupW / 2;
     const left      = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
 
-    // Vertical: use the nav bottom as anchor so the pill-lift transform doesn't cause a jump
+    // Always anchor to nav bottom — nav never has a transform applied to it
     const navBottom = navRef.current
       ? navRef.current.getBoundingClientRect().bottom
       : wrapRect.bottom;
@@ -150,25 +136,9 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     return { position: 'fixed', top: `${top}px`, left: `${left}px`, width: `${popupW}px` };
   }
 
-  // When animation is running, activeIndex changes every 4s.
-  // The active pill's lift transform (translateY -3px) moves between pills on each change.
-  // Recalculate popup position after the DOM settles (via requestAnimationFrame)
-  // so the popup stays locked to the correct pill-wrap position.
-  useEffect(() => {
-    if (!openId) return;
-    // rAF waits for the browser to apply the new transform before measuring
-    const raf = requestAnimationFrame(() => {
-      const style = calcStyle(openId);
-      if (style) setPopupStyle(style);
-    });
-    return () => cancelAnimationFrame(raf);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, openId]);
-
   const handleEyeClick = (e, emotionId) => {
+    e.preventDefault();
     e.stopPropagation();
-    // Compute position right here — synchronously, before setState —
-    // so both openId and popupStyle land in the same React batch → one render → no flash
     if (openId === emotionId) {
       setOpenId(null);
       setPopupStyle(null);
@@ -179,7 +149,6 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
     }
   };
 
-  // Arrow key navigation between emotion buttons
   const handlePillKeyDown = (e, index) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
@@ -212,6 +181,7 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
             data-emotion-id={emotion.id}
             style={{ '--pill-accent': emotion.accent }}
           >
+            {/* Pill button — selects the emotion */}
             <button
               ref={(el) => { pillRefs.current[emotion.id] = el; }}
               className={`selector__pill${isActive ? ' selector__pill--active' : ''}`}
@@ -226,27 +196,24 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
                 aria-hidden="true"
               />
               <span className="selector__pill-name">{emotion.name}</span>
-              <span
-                ref={(el) => { eyeRefs.current[emotion.id].current = el; }}
-                className={`pill__eye${isOpen ? ' pill__eye--open' : ''}`}
-                role="button"
-                tabIndex={0}
-                aria-label={`Show colour notes for ${emotion.name}`}
-                aria-expanded={isOpen}
-                aria-haspopup="dialog"
-                onClick={(e) => handleEyeClick(e, emotion.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleEyeClick(e, emotion.id);
-                  }
-                }}
-              >
-                <EyeIcon />
-              </span>
+              {/* Spacer so the pill text doesn't overlap the eye button */}
+              <span className="selector__pill-eyespace" aria-hidden="true" />
             </button>
 
-            {/* Only render popup when popupStyle is ready — eliminates position flash */}
+            {/* Eye button — OUTSIDE the pill button, overlaid via absolute positioning.
+                This prevents the nested-button HTML issue and stops the pill's onClick
+                from firing when the eye is tapped, which was causing the popup to jump. */}
+            <button
+              ref={(el) => { eyeRefs.current[emotion.id].current = el; }}
+              className={`pill__eye${isOpen ? ' pill__eye--open' : ''}`}
+              aria-label={`Show colour notes for ${emotion.name}`}
+              aria-expanded={isOpen}
+              aria-haspopup="dialog"
+              onClick={(e) => handleEyeClick(e, emotion.id)}
+            >
+              <EyeIcon />
+            </button>
+
             {isOpen && popupStyle && (
               <EmotionPopup
                 emotion={emotion}
