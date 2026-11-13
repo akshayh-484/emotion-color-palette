@@ -20,6 +20,11 @@
     />
 
     <title>Emotion Color Palette</title>
+    <!-- Inline critical styles — prevents white flash before React mounts -->
+    <style>
+      html, body { background: #09090F; margin: 0; padding: 0; }
+      #root { min-height: 100dvh; background: #09090F; }
+    </style>
   </head>
   <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
