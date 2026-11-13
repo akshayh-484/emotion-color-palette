@@ -114,6 +114,7 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
   const eyeRefs  = useRef({});
   const wrapRefs = useRef({});
   const pillRefs = useRef({});
+  const navRef   = useRef(null);   // reference to the <nav> — never transformed
 
   // Initialise eyeRefs entries for each emotion
   for (let i = 0; i < emotions.length; i++) {
@@ -123,19 +124,29 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
 
   // Compute popup position from the pill-wrap element synchronously.
   // Always uses position:fixed so the popup is above every stacking context.
+  // Top anchor uses the NAV bottom (never transformed) so the active-pill lift
+  // animation (translateY -3px) doesn't cause the popup to jump.
   function calcStyle(emotionId) {
     const wrapEl = wrapRefs.current[emotionId];
     if (!wrapEl) return null;
-    const rect   = wrapEl.getBoundingClientRect();
-    const vw     = window.innerWidth;
-    const isMob  = vw <= 768;
-    const popupW = isMob ? Math.min(POPUP_W, vw - POPUP_MARGIN * 2) : POPUP_W;
-    const idealLeft = rect.left + rect.width / 2 - popupW / 2;
-    const left   = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
-    const idealTop  = rect.bottom + 8;
-    const minSpace  = isMob ? 220 : 260;
-    const maxTop    = window.innerHeight - minSpace - POPUP_MARGIN;
-    const top    = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
+    const wrapRect = wrapEl.getBoundingClientRect();
+    const vw       = window.innerWidth;
+    const isMob    = vw <= 768;
+    const popupW   = isMob ? Math.min(POPUP_W, vw - POPUP_MARGIN * 2) : POPUP_W;
+
+    // Horizontal: centre over the pill-wrap (its left/width are unaffected by translateY)
+    const idealLeft = wrapRect.left + wrapRect.width / 2 - popupW / 2;
+    const left      = Math.max(POPUP_MARGIN, Math.min(idealLeft, vw - popupW - POPUP_MARGIN));
+
+    // Vertical: use the nav bottom as anchor so the pill-lift transform doesn't cause a jump
+    const navBottom = navRef.current
+      ? navRef.current.getBoundingClientRect().bottom
+      : wrapRect.bottom;
+    const idealTop = navBottom + 8;
+    const minSpace = isMob ? 220 : 260;
+    const maxTop   = window.innerHeight - minSpace - POPUP_MARGIN;
+    const top      = Math.max(POPUP_MARGIN, Math.min(idealTop, maxTop));
+
     return { position: 'fixed', top: `${top}px`, left: `${left}px`, width: `${popupW}px` };
   }
 
@@ -170,6 +181,7 @@ export default function EmotionSelector({ emotions, activeIndex, onSelect, isAni
 
   return (
     <nav
+      ref={navRef}
       className={`selector${isAnimating ? ' selector--animating' : ''}`}
       aria-label="Choose an emotion"
     >
